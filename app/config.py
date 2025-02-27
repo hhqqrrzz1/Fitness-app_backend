@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pathlib import Path
 
 class Settings(BaseSettings):
     DB_USER: str
@@ -11,7 +12,7 @@ class Settings(BaseSettings):
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
     
     class Config:
-        env_file = '.env'
+        env_file = Path(__file__).parent / '.env'
         env_file_encoding = 'utf-8'
 
 settings = Settings()
