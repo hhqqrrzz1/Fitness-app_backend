@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, ForeignKey, Date, Boolean
+from sqlalchemy import Column, String, Integer, ForeignKey, Date, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from typing import List
 from ..backend import Base
@@ -17,8 +17,11 @@ class User(Base):
 class Training(Base):
     __tablename__ = 'trainings'
 
+    #Добавим уникальное ограничение(чтобы в один день у каждого юзера была только 1 тренировка)
+    __table_args__ = (UniqueConstraint('user_id', 'date', name='uq_user_training_date'),)
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    date: Mapped[Date] =  mapped_column(Date)
+    date: Mapped[Date] =  mapped_column(Date, nullable=False)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'))
 
     user: Mapped["User"] = relationship("User", back_populates='trainings')
@@ -52,6 +55,7 @@ class Set(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     exercise_id: Mapped[int] = mapped_column(Integer, ForeignKey("exercises.id"))
+    weight_per_exe: Mapped[int] = mapped_column(Integer)
     reps: Mapped[int] = mapped_column(Integer, nullable=False)
 
     exercise: Mapped["Exercise"] = relationship("Exercise", back_populates="sets")
