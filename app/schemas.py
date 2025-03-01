@@ -8,13 +8,13 @@ class CreateUser(BaseModel):
     username: str
     password: str
 
-class MuscleGroupName(Enum):
-    BICEPS = 'Бицепс'
-    TRICEPS = 'Трицепс'
-    CHEST = "Грудь"
-    BACK = "Спина"
-    SHOULDERS = "Плечи"
-    LEGS = "Ноги"
+# class MuscleGroupName(Enum):
+#     BICEPS = 'Бицепс'
+#     TRICEPS = 'Трицепс'
+#     CHEST = "Грудь"
+#     BACK = "Спина"
+#     SHOULDERS = "Плечи"
+#     LEGS = "Ноги"
 
 class CreateSet(BaseModel):
     weight_per_exe: int
@@ -24,9 +24,10 @@ class CreateExercise(BaseModel):
     exercise_name: str
     weight: int
     sets: List[CreateSet]
+    numbers_reps: int
 
 class CreateMuscleGroup(BaseModel):
-    group_name: MuscleGroupName
+    group_name: str
     exercises: List[CreateExercise]
 
 class CreateTraining(BaseModel):

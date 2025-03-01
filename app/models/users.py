@@ -36,7 +36,7 @@ class MuscleGroup(Base):
     group_name: Mapped[str] = mapped_column(String, nullable=False)
 
     training: Mapped["Training"] = relationship("Training", back_populates='muscle_groups')
-    exercices: Mapped[List["Exercise"]] = relationship("Exercise", back_populates="muscle_group")
+    exercises: Mapped[List["Exercise"]] = relationship("Exercise", back_populates="muscle_group")
 
 class Exercise(Base):
     __tablename__ = "exercises"
