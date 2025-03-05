@@ -1,10 +1,11 @@
 from app.models import Training, Set, MuscleGroup, Exercise
 from app.schemas import CreateExercise, CreateMuscleGroup, CreateSet, CreateTraining
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import Annotated
 from app.backend.db_depends import get_db
-from sqlalchemy import select, insert
+from sqlalchemy import select, insert, delete, update
+from datetime import datetime
 
 router = APIRouter(prefix='/trainings', tags=['trainings'])
 
@@ -27,6 +28,8 @@ async def create_training(db: Annotated[AsyncSession, Depends(get_db)], create_t
     db.add(new_training)
     await db.flush()
 
+    muscle_group_names = []
+
     for muscle_group_data in create_training_data.muscle_groups:
         new_muscle_group = MuscleGroup(
             training_id=new_training.id,
@@ -34,6 +37,8 @@ async def create_training(db: Annotated[AsyncSession, Depends(get_db)], create_t
         )
         db.add(new_muscle_group)
         await db.flush()
+
+        muscle_group_names.append(new_muscle_group.group_name)
 
         for exercise_data in muscle_group_data.exercises:
             new_exercise = Exercise(
@@ -52,5 +57,41 @@ async def create_training(db: Annotated[AsyncSession, Depends(get_db)], create_t
                     reps=set_data.reps
                 )
                 db.add(new_set)
+    
+    formatted_date = new_training.date.strftime("%d.%m.%Y")
+    title = f"{formatted_date}-" + ' ,'.join(muscle_group_names)
+    new_training.title = title
+    db.add(new_training)
+
     await db.commit()
     return new_training
+
+@router.put("/update-training-date")
+async def update_training_date(db: Annotated[AsyncSession, Depends(get_db)], update_date: str, training_id: int):
+    try:
+        new_date = datetime.strptime(update_date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Неверный формат даты')
+    
+    training = await db.scalar(select(Training).where(Training.id == training_id))
+    if not training:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Тренировка не найдена")
+    await db.execute(update(Training).where(Training.id == training_id).values(date=new_date))
+    await db.commit()
+    return {
+        "status_code": status.HTTP_200_OK,
+        "transaction": "Training update is successful"
+    }
+
+@router.delete('/{training_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_training(db: Annotated[AsyncSession, Depends(get_db)], training_id: int):
+    training = await db.scalar(select(Training).where(Training.id == training_id))
+    if not training:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Тренировка не найдена"
+        )
+    await db.execute(delete(Training).where(Training.id == training_id))
+    await db.commit()
+
+    return None

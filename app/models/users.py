@@ -22,6 +22,7 @@ class Training(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     date: Mapped[Date] =  mapped_column(Date, nullable=False)
+    title: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'))
 
     user: Mapped["User"] = relationship("User", back_populates='trainings')
@@ -32,7 +33,7 @@ class MuscleGroup(Base):
     __tablename__ = "muscle_groups"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    training_id: Mapped[int] = mapped_column(Integer, ForeignKey("trainings.id"))
+    training_id: Mapped[int] = mapped_column(Integer, ForeignKey("trainings.id", ondelete="CASCADE"))
     group_name: Mapped[str] = mapped_column(String, nullable=False)
 
     training: Mapped["Training"] = relationship("Training", back_populates='muscle_groups')
@@ -42,7 +43,7 @@ class Exercise(Base):
     __tablename__ = "exercises"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    muscle_group_id: Mapped[int] = mapped_column(Integer, ForeignKey("muscle_groups.id"))
+    muscle_group_id: Mapped[int] = mapped_column(Integer, ForeignKey("muscle_groups.id", ondelete="CASCADE"))
     exercise_name: Mapped[str] = mapped_column(String, nullable=False)
     weight: Mapped[int] = mapped_column(Integer, nullable=True, default=0)
     numbers_reps: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -54,7 +55,7 @@ class Set(Base):
     __tablename__ = "sets"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    exercise_id: Mapped[int] = mapped_column(Integer, ForeignKey("exercises.id"))
+    exercise_id: Mapped[int] = mapped_column(Integer, ForeignKey("exercises.id", ondelete="CASCADE"))
     weight_per_exe: Mapped[int] = mapped_column(Integer)
     reps: Mapped[int] = mapped_column(Integer, nullable=False)
 
