@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import Annotated
 from app.backend.db_depends import get_db
 from sqlalchemy import select, insert, delete, update
-from datetime import datetime
+from datetime import datetime, date
 
 router = APIRouter(prefix='/trainings', tags=['trainings'])
 
@@ -59,24 +59,25 @@ async def create_training(db: Annotated[AsyncSession, Depends(get_db)], create_t
                 db.add(new_set)
     
     formatted_date = new_training.date.strftime("%d.%m.%Y")
-    title = f"{formatted_date}-" + ' ,'.join(muscle_group_names)
+    title = f"{formatted_date}-" + ', '.join(muscle_group_names)
     new_training.title = title
     db.add(new_training)
 
     await db.commit()
     return new_training
 
-@router.put("/update-training-date")
-async def update_training_date(db: Annotated[AsyncSession, Depends(get_db)], update_date: str, training_id: int):
-    try:
-        new_date = datetime.strptime(update_date, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Неверный формат даты')
-    
+@router.patch("/update-training-date")
+async def update_training_date(db: Annotated[AsyncSession, Depends(get_db)], update_date: date, training_id: int):
     training = await db.scalar(select(Training).where(Training.id == training_id))
+    
     if not training:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Тренировка не найдена")
-    await db.execute(update(Training).where(Training.id == training_id).values(date=new_date))
+    
+    muscle_group_names = await db.scalars(select(MuscleGroup.group_name).where(MuscleGroup.training_id == training_id))
+    formatted_date = update_date.strftime("%d.%m.%Y")
+    new_title = f"{formatted_date}-" + ', '.join(muscle_group_names.all())
+    
+    await db.execute(update(Training).where(Training.id == training_id).values(date=update_date, title=new_title))
     await db.commit()
     return {
         "status_code": status.HTTP_200_OK,
