@@ -52,10 +52,11 @@ async def delete_user(db: Annotated[AsyncSession, Depends(get_db)], user_id: int
 
 @router.get("/all_workouts/{user_id}", status_code=status.HTTP_200_OK)
 async def get_number_of_trainings(db: Annotated[AsyncSession, Depends(get_db)], user_id: int):
+    """Функция, которая возвращает кол-во тренировок у юзера и выводит список всех его тренировок, в порядке возрастания даты"""
     user = await db.scalar(select(User).where(User.id == user_id))
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    all_trainings = await db.scalars(select(Training.title).where(Training.user_id == user_id))
+    all_trainings = await db.scalars(select(Training.title).where(Training.user_id == user_id).order_by(Training.date))
     title_list = all_trainings.all()
 
     return {

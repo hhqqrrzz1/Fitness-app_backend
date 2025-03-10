@@ -1,20 +1,11 @@
 from typing import List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from datetime import date
-from enum import Enum
 
 class CreateUser(BaseModel):
     email: str
     username: str
     password: str
-
-# class MuscleGroupName(Enum):
-#     BICEPS = 'Бицепс'
-#     TRICEPS = 'Трицепс'
-#     CHEST = "Грудь"
-#     BACK = "Спина"
-#     SHOULDERS = "Плечи"
-#     LEGS = "Ноги"
 
 class CreateSet(BaseModel):
     weight_per_exe: int

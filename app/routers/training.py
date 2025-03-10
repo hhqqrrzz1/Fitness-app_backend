@@ -1,11 +1,11 @@
 from app.models import Training, Set, MuscleGroup, Exercise
-from app.schemas import CreateExercise, CreateMuscleGroup, CreateSet, CreateTraining
+from app.schemas import CreateTraining
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Annotated
 from app.backend.db_depends import get_db
-from sqlalchemy import select, insert, delete, update
-from datetime import datetime, date
+from sqlalchemy import select, delete, update
+from datetime import date
 
 router = APIRouter(prefix='/trainings', tags=['trainings'])
 
@@ -33,7 +33,7 @@ async def create_training(db: Annotated[AsyncSession, Depends(get_db)], create_t
     for muscle_group_data in create_training_data.muscle_groups:
         new_muscle_group = MuscleGroup(
             training_id=new_training.id,
-            group_name=muscle_group_data.group_name
+            group_name=muscle_group_data.group_name.title()
         )
         db.add(new_muscle_group)
         await db.flush()
