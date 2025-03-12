@@ -30,12 +30,14 @@ async def delete_muscle_group(
         )
     training = await db.scalar(select(Training).where(Training.id == muscle_group.training_id))
     group_names = [name.strip() for name in training.title.split("-")[1].split(",") if name.strip()]
+    if len(group_names) == 1:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Can't remove the last muscle group"
+        )
     group_names.remove(muscle_group.group_name.strip())
-    if group_names:
-        new_title = f"{training.date.strftime('%d.%m.%Y')}-" + ", ".join(group_names)
-    else:
-        new_title = training.date.strftime('%d.%m.%Y')
 
+    new_title = f"{training.date.strftime('%d.%m.%Y')}-" + ", ".join(group_names)
     training.title = new_title
     db.add(training)
 
