@@ -90,10 +90,11 @@ async def create_muscle_group(
                 muscle_group_id=new_muscle_group.id,
                 exercise_name=exercise_data.exercise_name,
                 weight=exercise_data.weight,
-                numbers_reps=exercise_data.numbers_reps
+                numbers_reps=1
             )
             db.add(new_exercise)
             await db.flush()
+            cnt = 0
 
             for set_data in exercise_data.sets:
                 new_set = Set(
@@ -102,6 +103,8 @@ async def create_muscle_group(
                     reps=set_data.reps
                 )
                 db.add(new_set)
+                cnt += 1
+            new_exercise.numbers_reps = cnt
         
         await db.commit()
         return new_muscle_group

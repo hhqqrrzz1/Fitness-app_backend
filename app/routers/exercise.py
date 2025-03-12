@@ -1,20 +1,25 @@
 from app.models import Set, Exercise, MuscleGroup
-from app.schemas import CreateSet, CreateExercise
+from app.schemas import CreateSet, CreateExercise, ExerciseResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from app.backend.db_depends import get_db
 from sqlalchemy import select, insert, update
 from typing import Annotated
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
 router = APIRouter(prefix='/exercises', tags=['exercises'])
 
-@router.get('/{exercise_id}')
+@router.get('/{exercise_id}', response_model=ExerciseResponse)
 async def get_exercise(
     db:Annotated[AsyncSession, Depends(get_db)],
     exercise_id: int
 ):
-    exercise = await db.scalar(select(Exercise).where(Exercise.id == exercise_id))
+    exercise = await db.scalar(
+        select(Exercise)
+        .options(selectinload(Exercise.sets))
+        .where(Exercise.id == exercise_id)
+    )
     if not exercise:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -51,10 +56,11 @@ async def create_exercise(
         muscle_group_id=muscle_group_id,
         exercise_name=create_data.exercise_name,
         weight=create_data.weight,
-        numbers_reps=create_data.numbers_reps
+        numbers_reps=1
     )
     db.add(new_exercise)
     await db.flush()
+    cnt = 0
 
     try:
         for set_data in create_data.sets:
@@ -64,7 +70,9 @@ async def create_exercise(
                 reps=set_data.reps
             )
             db.add(new_set)
-
+            cnt += 1
+        new_exercise.numbers_reps = cnt
+        
         await db.commit()
         return new_exercise
     except IntegrityError as e:
@@ -73,3 +81,17 @@ async def create_exercise(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create exercise: {str(e)}"
         )
+
+@router.patch('/{exercise_id}', status_code=status.HTTP_200_OK)
+async def update_exercise(db: Annotated[AsyncSession, Depends(get_db)], exercise_id: int, new_weight: Annotated[int, Body(ge=0)]):
+    exercise = await db.scalar(select(Exercise).where(Exercise.id == exercise_id))
+    if not exercise:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="exercise not found"
+        )
+    await db.execute(update(Exercise).where(Exercise.id == exercise_id).values(weight = new_weight))
+    await db.commit()
+
+    updated_exercise = await db.scalar(select(Exercise).where(Exercise.id == exercise_id))
+    return updated_exercise

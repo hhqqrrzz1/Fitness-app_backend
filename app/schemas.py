@@ -14,7 +14,6 @@ class CreateSet(BaseModel):
 class CreateExercise(BaseModel):
     exercise_name: str
     weight: float = Field(..., gt=0)
-    numbers_reps: int
     sets: List[CreateSet]
 
 class CreateMuscleGroup(BaseModel):
@@ -24,3 +23,23 @@ class CreateMuscleGroup(BaseModel):
 class CreateTraining(BaseModel):
     date: date
     muscle_groups: List[CreateMuscleGroup]
+
+class SetResponse(BaseModel):
+    id: int
+    exercise_id: int
+    weight_per_exe: float
+    reps: int
+
+    class Config:
+        from_attributes = True
+
+class ExerciseResponse(BaseModel):
+    id: int
+    muscle_group_id: int
+    exercise_name: str
+    weight: float
+    numbers_reps: int
+    sets: List[SetResponse]
+
+    class Config:
+        from_attributes = True
