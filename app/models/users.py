@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, ForeignKey, Date, Boolean, UniqueConstraint
+from sqlalchemy import Column, String, Integer, Float, ForeignKey, Date, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from typing import List
 from ..backend import Base
@@ -45,7 +45,7 @@ class Exercise(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     muscle_group_id: Mapped[int] = mapped_column(Integer, ForeignKey("muscle_groups.id", ondelete="CASCADE"))
     exercise_name: Mapped[str] = mapped_column(String, nullable=False)
-    weight: Mapped[int] = mapped_column(Integer, nullable=True, default=0)
+    weight: Mapped[float] = mapped_column(Float, nullable=True, default=0)
     numbers_reps: Mapped[int] = mapped_column(Integer, nullable=False)
 
     muscle_group: Mapped["MuscleGroup"] = relationship("MuscleGroup", back_populates='exercises')
@@ -56,7 +56,7 @@ class Set(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     exercise_id: Mapped[int] = mapped_column(Integer, ForeignKey("exercises.id", ondelete="CASCADE"))
-    weight_per_exe: Mapped[int] = mapped_column(Integer)
+    weight_per_exe: Mapped[float] = mapped_column(Float)
     reps: Mapped[int] = mapped_column(Integer, nullable=False)
 
     exercise: Mapped["Exercise"] = relationship("Exercise", back_populates="sets")

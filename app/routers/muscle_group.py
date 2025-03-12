@@ -70,7 +70,7 @@ async def create_muscle_group(
     if exesting_group:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Muscle group with this name in training"
+            detail="Muscle group with this name already exists for the training"
         )
 
     new_muscle_group = MuscleGroup(
