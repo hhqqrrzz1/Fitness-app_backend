@@ -1,3 +1,4 @@
+from typing import List
 from app.models import Set, Exercise
 from app.schemas.create_schemas import CreateSet
 from app.schemas.response_schemas import SetResponse
@@ -5,30 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Annotated
 from app.backend.db_depends import get_db
-from sqlalchemy import delete, select, insert, update
+from sqlalchemy import delete, select
 
 router = APIRouter(prefix='/sets', tags=['sets'])
 
-@router.get('/{set_id}', response_model=SetResponse)
-async def get_set(db: Annotated[AsyncSession, Depends(get_db)], set_id: int):
-    set = await db.scalar(select(Set).where(Set.id == set_id))
-    if not set:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Set not found"
-        )
-    return set
-
-@router.get('/')
-async def get_all_set_by_exercise(db: Annotated[AsyncSession, Depends(get_db)], exercise_id: int):
-    exercise = await db.scalar(select(Exercise).where(Exercise.id == exercise_id))
-    if not exercise:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail='Exercise not found'
-        )
-    sets = await db.scalars(select(Set).where(Set.exercise_id == exercise_id))
-    return sets.all()
 
 @router.post('/', status_code=status.HTTP_201_CREATED)
 async def create_set(db: Annotated[AsyncSession, Depends(get_db)], create_set: CreateSet, exercise_id: int):
@@ -41,7 +22,8 @@ async def create_set(db: Annotated[AsyncSession, Depends(get_db)], create_set: C
     new_set = Set(
         exercise_id=exercise_id,
         weight_per_exe=create_set.weight_per_exe,
-        reps=create_set.reps
+        reps=create_set.reps,
+        user_id=exercise.user_id
     )
     db.add(new_set)
     await db.flush()
@@ -51,7 +33,34 @@ async def create_set(db: Annotated[AsyncSession, Depends(get_db)], create_set: C
 
     await db.commit()
 
-    return new_set
+    return {
+        'status': status.HTTP_201_CREATED,
+        'transaction': 'New set created'
+    }
+
+
+@router.get('/{set_id}', response_model=SetResponse)
+async def get_set(db: Annotated[AsyncSession, Depends(get_db)], set_id: int):
+    set = await db.scalar(select(Set).where(Set.id == set_id))
+    if not set:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Set not found"
+        )
+    return set
+
+
+@router.get('/', response_model=List[SetResponse])
+async def get_all_set_by_exercise(db: Annotated[AsyncSession, Depends(get_db)], exercise_id: int):
+    exercise = await db.scalar(select(Exercise).where(Exercise.id == exercise_id))
+    if not exercise:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='Exercise not found'
+        )
+    sets = await db.scalars(select(Set).where(Set.exercise_id == exercise_id))
+    return sets.all()
+
 
 @router.delete('/{set_id}', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_set(db: Annotated[AsyncSession, Depends(get_db)], set_id: int):
@@ -78,6 +87,7 @@ async def delete_set(db: Annotated[AsyncSession, Depends(get_db)], set_id: int):
 
     return None
 
+
 @router.put('/{set_id}', status_code=status.HTTP_200_OK, response_model=SetResponse)
 async def update_set(db: Annotated[AsyncSession, Depends(get_db)], set_id: int, new_data: CreateSet):
     set_to_update = await db.scalar(select(Set).where(Set.id == set_id))
@@ -101,7 +111,10 @@ async def update_set(db: Annotated[AsyncSession, Depends(get_db)], set_id: int, 
         await db.commit()
         await db.refresh()
 
-        return set_to_update
+        return {
+            'status': status.HTTP_201_CREATED,
+            'transaction': "Set updated"
+        }    
     except Exception as e:
         await db.rollback()
         raise HTTPException(

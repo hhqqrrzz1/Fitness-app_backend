@@ -1,14 +1,16 @@
 from app.models import Set, Exercise, MuscleGroup
-from app.schemas.create_schemas import CreateSet, CreateExercise, ExerciseResponse
+from app.schemas.create_schemas import CreateExercise
+from app.schemas.response_schemas import ExerciseResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from app.backend.db_depends import get_db
-from sqlalchemy import select, insert, update
+from sqlalchemy import select, update, delete
 from typing import Annotated
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 router = APIRouter(prefix='/exercises', tags=['exercises'])
+
 
 @router.get('/{exercise_id}', response_model=ExerciseResponse)
 async def get_exercise(
@@ -27,7 +29,8 @@ async def get_exercise(
         )
     return exercise
 
-@router.post('/')
+
+@router.post('/', response_model=ExerciseResponse)
 async def create_exercise(
     db:Annotated[AsyncSession, Depends(get_db)],
     create_data: CreateExercise,
@@ -51,30 +54,33 @@ async def create_exercise(
             status_code=status.HTTP_409_CONFLICT,
             detail='Exercise with this name alredy exists for the muscle_group '
         )
-    
+    user_id = muscle_group.user_id
     new_exercise = Exercise(
         muscle_group_id=muscle_group_id,
         exercise_name=create_data.exercise_name,
         weight=create_data.weight,
-        numbers_reps=1
+        numbers_reps=1,
+        user_id=user_id
     )
     db.add(new_exercise)
-    await db.flush()
+    await db.flush()    
     cnt = 0
-
     try:
         for set_data in create_data.sets:
             new_set = Set(
                 exercise_id=new_exercise.id,
                 weight_per_exe=set_data.weight_per_exe,
-                reps=set_data.reps
+                reps=set_data.reps,
+                user_id=user_id
             )
             db.add(new_set)
             cnt += 1
-        new_exercise.numbers_reps = cnt
-        
+        new_exercise.numbers_reps = cnt        
         await db.commit()
-        return new_exercise
+        return {
+            'status': status.HTTP_201_CREATED,
+            'transaction': 'successful'
+        }
     except IntegrityError as e:
         await db.rollback()
         raise HTTPException(
@@ -82,7 +88,8 @@ async def create_exercise(
             detail=f"Failed to create exercise: {str(e)}"
         )
 
-@router.patch('/{exercise_id}', status_code=status.HTTP_200_OK)
+
+@router.patch('/{exercise_id}', status_code=status.HTTP_200_OK, response_model=ExerciseResponse)
 async def update_exercise(db: Annotated[AsyncSession, Depends(get_db)], exercise_id: int, new_weight: Annotated[int, Body(ge=0)]):
     exercise = await db.scalar(select(Exercise).where(Exercise.id == exercise_id))
     if not exercise:
@@ -95,3 +102,16 @@ async def update_exercise(db: Annotated[AsyncSession, Depends(get_db)], exercise
 
     updated_exercise = await db.scalar(select(Exercise).where(Exercise.id == exercise_id))
     return updated_exercise
+
+
+@router.delete('/{exercise_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_exercise(db: Annotated[AsyncSession, Depends(get_db)], exercise_id: int):
+    exercise = await db.scalar(select(Exercise).where(Exercise.id == exercise_id))
+    if not exercise:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='Exercise not found'
+        )
+    await db.execute(delete(Exercise).where(Exercise.id == exercise_id))
+    await db.commit()
+    return None

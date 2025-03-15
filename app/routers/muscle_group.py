@@ -2,16 +2,91 @@ from fastapi import Depends, HTTPException, APIRouter, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.backend.db_depends import get_db
 from app.models.users import MuscleGroup, Training, Exercise, Set
-from app.schemas.create_schemas import CreateMuscleGroup, CreateExercise, CreateSet
+from app.schemas.create_schemas import CreateMuscleGroup
+from app.schemas.response_schemas import MuscleGroupResponse
 from typing import Annotated
-from sqlalchemy import select, delete, update
-from datetime import date
+from sqlalchemy import select, delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 router = APIRouter(prefix='/muscle-groups', tags=['muscle-groups'])
 
-@router.get('/{muscle_group_id}')
+
+@router.post('/')
+async def create_muscle_group(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    create_data: CreateMuscleGroup,
+    training_id: int
+):
+    training = await db.scalar(select(Training).where(Training.id == training_id))
+    if not training:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Training not found"
+        )
+    #Проверим наличие данной гр. мышц в тренировке
+    exesting_group = await db.scalar(
+        select(MuscleGroup).where(
+            MuscleGroup.training_id == training_id,
+            MuscleGroup.group_name == create_data.group_name.title()
+        )
+    )
+    if exesting_group:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Muscle group with this name already exists for the training"
+        )
+    user_id = training.user_id
+
+    new_muscle_group = MuscleGroup(
+        training_id=training_id,
+        group_name=create_data.group_name.title(),
+        user_id=user_id
+    )
+    db.add(new_muscle_group)
+    await db.flush()
+
+    new_title = training.title + f", {new_muscle_group.group_name}"
+    training.title = new_title
+    db.add(training)
+    try:
+        for exercise_data in create_data.exercises:
+            new_exercise = Exercise(
+                muscle_group_id=new_muscle_group.id,
+                exercise_name=exercise_data.exercise_name,
+                weight=exercise_data.weight,
+                numbers_reps=1,
+                user_id=user_id
+            )
+            db.add(new_exercise)
+            await db.flush()
+            cnt = 0
+
+            for set_data in exercise_data.sets:
+                new_set = Set(
+                    exercise_id=new_exercise.id,
+                    weight_per_exe=set_data.weight_per_exe,
+                    reps=set_data.reps,
+                    user_id=user_id
+                )
+                db.add(new_set)
+                cnt += 1
+            new_exercise.numbers_reps = cnt
+        
+        await db.commit()
+        return {
+            'status': status.HTTP_201_CREATED,
+            'transaction': 'successful'
+        }
+    except IntegrityError as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create muscle group: {str(e)}"
+        )
+    
+
+@router.get('/{muscle_group_id}', response_model=MuscleGroupResponse)
 async def get_muscle_group(db: Annotated[AsyncSession, Depends(get_db)], muscle_group_id: int):
     muscle_group = await db.scalar(
         select(MuscleGroup)
@@ -59,70 +134,4 @@ async def delete_muscle_group(
     await db.commit()
     return None
 
-@router.post('/')
-async def create_muscle_group(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    create_data: CreateMuscleGroup,
-    training_id: int
-):
-    training = await db.scalar(select(Training).where(Training.id == training_id))
-    if not training:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Training not found"
-        )
-    #Проверим наличие данной гр. мышц в тренировке
-    exesting_group = await db.scalar(
-        select(MuscleGroup).where(
-            MuscleGroup.training_id == training_id,
-            MuscleGroup.group_name == create_data.group_name.title()
-        )
-    )
-    if exesting_group:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Muscle group with this name already exists for the training"
-        )
 
-    new_muscle_group = MuscleGroup(
-        training_id=training_id,
-        group_name=create_data.group_name.title()
-    )
-    db.add(new_muscle_group)
-    await db.flush()
-
-    new_title = training.title + f", {new_muscle_group.group_name}"
-    training.title = new_title
-    db.add(training)
-
-    try:
-        for exercise_data in create_data.exercises:
-            new_exercise = Exercise(
-                muscle_group_id=new_muscle_group.id,
-                exercise_name=exercise_data.exercise_name,
-                weight=exercise_data.weight,
-                numbers_reps=1
-            )
-            db.add(new_exercise)
-            await db.flush()
-            cnt = 0
-
-            for set_data in exercise_data.sets:
-                new_set = Set(
-                    exercise_id=new_exercise.id,
-                    weight_per_exe=set_data.weight_per_exe,
-                    reps=set_data.reps
-                )
-                db.add(new_set)
-                cnt += 1
-            new_exercise.numbers_reps = cnt
-        
-        await db.commit()
-        return new_muscle_group
-    except IntegrityError as e:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create muscle group: {str(e)}"
-        )
-    

@@ -36,6 +36,8 @@ class MuscleGroup(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     training_id: Mapped[int] = mapped_column(Integer, ForeignKey("trainings.id", ondelete="CASCADE"))
     group_name: Mapped[str] = mapped_column(String, nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'))
+
 
     training: Mapped["Training"] = relationship("Training", back_populates='muscle_groups')
     exercises: Mapped[List["Exercise"]] = relationship("Exercise", back_populates="muscle_group")
@@ -48,6 +50,8 @@ class Exercise(Base):
     exercise_name: Mapped[str] = mapped_column(String, nullable=False)
     weight: Mapped[float] = mapped_column(Float, nullable=True, default=0)
     numbers_reps: Mapped[int] = mapped_column(Integer, nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'))
+
 
     muscle_group: Mapped["MuscleGroup"] = relationship("MuscleGroup", back_populates='exercises')
     sets: Mapped[List["Set"]] = relationship("Set", back_populates='exercise')
@@ -59,5 +63,7 @@ class Set(Base):
     exercise_id: Mapped[int] = mapped_column(Integer, ForeignKey("exercises.id", ondelete="CASCADE"))
     weight_per_exe: Mapped[float] = mapped_column(Float)
     reps: Mapped[int] = mapped_column(Integer, nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'))
+
 
     exercise: Mapped["Exercise"] = relationship("Exercise", back_populates="sets")

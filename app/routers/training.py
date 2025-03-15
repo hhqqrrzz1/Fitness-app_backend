@@ -1,23 +1,16 @@
 from app.models import Training, Set, MuscleGroup, Exercise
 from app.schemas.create_schemas import CreateTraining
+from app.schemas.response_schemas import TrainingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Annotated
 from app.backend.db_depends import get_db
 from sqlalchemy import select, delete, update
+from sqlalchemy.orm import selectinload
 from datetime import date
 
 router = APIRouter(prefix='/trainings', tags=['trainings'])
 
-@router.get('/{training_id}')
-async def get_training(db: Annotated[AsyncSession, Depends(get_db)], training_id: int):
-    training = await db.scalar(select(Training).where(Training.id == training_id))
-    if not training:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail='Training not found'
-        )
-    return training
 
 @router.post('/', status_code=status.HTTP_201_CREATED)
 async def create_training(db: Annotated[AsyncSession, Depends(get_db)], create_training_data: CreateTraining, user_id: int):
@@ -33,7 +26,8 @@ async def create_training(db: Annotated[AsyncSession, Depends(get_db)], create_t
     for muscle_group_data in create_training_data.muscle_groups:
         new_muscle_group = MuscleGroup(
             training_id=new_training.id,
-            group_name=muscle_group_data.group_name.title()
+            group_name=muscle_group_data.group_name.title(),
+            user_id=user_id
         )
         db.add(new_muscle_group)
         await db.flush()
@@ -45,7 +39,8 @@ async def create_training(db: Annotated[AsyncSession, Depends(get_db)], create_t
                 muscle_group_id=new_muscle_group.id,
                 exercise_name=exercise_data.exercise_name,
                 weight=exercise_data.weight,
-                numbers_reps=1
+                numbers_reps=1,
+                user_id=user_id
             )
             db.add(new_exercise)
             await db.flush()
@@ -55,11 +50,12 @@ async def create_training(db: Annotated[AsyncSession, Depends(get_db)], create_t
                 new_set = Set(
                     exercise_id=new_exercise.id,
                     weight_per_exe=set_data.weight_per_exe,
-                    reps=set_data.reps
+                    reps=set_data.reps,
+                    user_id=user_id
                 )
                 db.add(new_set)
                 cnt += 1
-            new_exercise.sets = cnt
+            new_exercise.numbers_reps = cnt
     
     formatted_date = new_training.date.strftime("%d.%m.%Y")
     title = f"{formatted_date}-" + ', '.join(muscle_group_names)
@@ -67,7 +63,32 @@ async def create_training(db: Annotated[AsyncSession, Depends(get_db)], create_t
     db.add(new_training)
 
     await db.commit()
-    return new_training
+    return {
+            'status': status.HTTP_201_CREATED,
+            'transaction': 'New training created'
+        }
+
+
+@router.get('/{training_id}', response_model=TrainingResponse)
+async def get_training(db: Annotated[AsyncSession, Depends(get_db)], training_id: int):
+    training = await db.scalar(select(Training)
+                               .options(
+                                   selectinload(Training.muscle_groups).options(
+                                       selectinload(MuscleGroup.exercises).options(
+                                           selectinload(Exercise.sets)
+                                       )
+                                   )
+                               )
+                               .where(Training.id == training_id)
+                            )
+    if not training:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='Training not found'
+        )
+    return training
+
+
 
 @router.patch("/update-training-date")
 async def update_training_date(db: Annotated[AsyncSession, Depends(get_db)], update_date: date, training_id: int):
