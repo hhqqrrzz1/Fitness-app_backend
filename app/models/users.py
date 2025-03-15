@@ -10,7 +10,8 @@ class User(Base):
     email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     username: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     password: Mapped[str] = mapped_column(String, nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_guest: Mapped[bool] = mapped_column(Boolean, default=True)
 
     trainings: Mapped[List["Training"]] = relationship("Training", back_populates='user', cascade='all, delete-orphan')
 

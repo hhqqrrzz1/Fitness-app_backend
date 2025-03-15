@@ -2,17 +2,26 @@ from fastapi import Depends, HTTPException, APIRouter, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.backend.db_depends import get_db
 from app.models.users import MuscleGroup, Training, Exercise, Set
-from app.schemas import CreateMuscleGroup, CreateExercise, CreateSet
+from app.schemas.create_schemas import CreateMuscleGroup, CreateExercise, CreateSet
 from typing import Annotated
 from sqlalchemy import select, delete, update
 from datetime import date
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
 router = APIRouter(prefix='/muscle-groups', tags=['muscle-groups'])
 
 @router.get('/{muscle_group_id}')
 async def get_muscle_group(db: Annotated[AsyncSession, Depends(get_db)], muscle_group_id: int):
-    muscle_group = await db.scalar(select(MuscleGroup).where(MuscleGroup.id == muscle_group_id))
+    muscle_group = await db.scalar(
+        select(MuscleGroup)
+        .options(
+            selectinload(MuscleGroup.exercises).options(
+                selectinload(Exercise.sets)
+            )
+        )
+        .where(MuscleGroup.id == muscle_group_id)
+    )
     if not muscle_group:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Muslce gtoup not found")
     return muscle_group

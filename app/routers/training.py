@@ -1,5 +1,5 @@
 from app.models import Training, Set, MuscleGroup, Exercise
-from app.schemas import CreateTraining
+from app.schemas.create_schemas import CreateTraining
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Annotated

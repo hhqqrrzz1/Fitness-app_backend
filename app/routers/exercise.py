@@ -1,5 +1,5 @@
 from app.models import Set, Exercise, MuscleGroup
-from app.schemas import CreateSet, CreateExercise, ExerciseResponse
+from app.schemas.create_schemas import CreateSet, CreateExercise, ExerciseResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from app.backend.db_depends import get_db

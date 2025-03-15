@@ -1,5 +1,6 @@
 from app.models import Set, Exercise
-from app.schemas import CreateSet, SetResponse
+from app.schemas.create_schemas import CreateSet
+from app.schemas.response_schemas import SetResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Annotated

@@ -1,9 +1,9 @@
 from typing import List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from datetime import date
 
 class CreateUser(BaseModel):
-    email: str
+    email: EmailStr
     username: str
     password: str
 
@@ -23,23 +23,3 @@ class CreateMuscleGroup(BaseModel):
 class CreateTraining(BaseModel):
     date: date
     muscle_groups: List[CreateMuscleGroup]
-
-class SetResponse(BaseModel):
-    id: int
-    exercise_id: int
-    weight_per_exe: float
-    reps: int
-
-    class Config:
-        from_attributes = True
-
-class ExerciseResponse(BaseModel):
-    id: int
-    muscle_group_id: int
-    exercise_name: str
-    weight: float
-    numbers_reps: int
-    sets: List[SetResponse]
-
-    class Config:
-        from_attributes = True
