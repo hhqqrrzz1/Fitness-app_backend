@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from app.models.users import User
+from app.models.all_models import User
 from app.schemas.create_schemas import CreateUser
 from app.backend.db_depends import get_db
 from sqlalchemy import insert, or_, select

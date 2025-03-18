@@ -1,5 +1,5 @@
 from fastapi import HTTPException, APIRouter, status
-from app.models.users import MuscleGroup, Training, Exercise, Set
+from app.models.all_models import MuscleGroup, Training, Exercise, Set
 from app.schemas.create_schemas import CreateMuscleGroup
 from app.schemas.response_schemas import MuscleGroupResponse, MuscleGroupResponsePatch
 from sqlalchemy import select, delete

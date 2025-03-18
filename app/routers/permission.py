@@ -1,6 +1,6 @@
 from fastapi import APIRouter, status, HTTPException
 from sqlalchemy import select, update, delete
-from app.models.users import User
+from app.models.all_models import User
 from app.routers.env import full_rights
 from app.routers.dependencies import current_user, db_session
 
