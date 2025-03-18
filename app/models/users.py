@@ -61,7 +61,7 @@ class Set(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     exercise_id: Mapped[int] = mapped_column(Integer, ForeignKey("exercises.id", ondelete="CASCADE"))
-    weight_per_exe: Mapped[float] = mapped_column(Float)
+    weight_per_exe: Mapped[float] = mapped_column(Float, nullable=True)
     reps: Mapped[int] = mapped_column(Integer, nullable=False)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'))
 

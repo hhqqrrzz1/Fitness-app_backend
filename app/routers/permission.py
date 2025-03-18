@@ -1,18 +1,15 @@
-from fastapi import APIRouter, Depends, status, HTTPException
-from app.backend.db_depends import get_db
-from typing import Annotated
-from app.routers.auth import get_current_user
+from fastapi import APIRouter, status, HTTPException
 from sqlalchemy import select, update, delete
-from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.users import User
 from app.routers.env import full_rights
+from app.routers.dependencies import current_user, db_session
 
 router = APIRouter(prefix='/permission', tags=['permission'])
 
 @router.patch('/')
 async def admin_permission(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    get_user: Annotated[dict, Depends(get_current_user)],
+    db: db_session,
+    get_user: current_user,
     user_id: int
 ):
     if get_user.get('is_admin') and get_user.get('username') in full_rights:
@@ -50,8 +47,8 @@ async def admin_permission(
     
 @router.delete('/delete', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    get_user: Annotated[dict, Depends(get_current_user)],
+    db: db_session,
+    get_user: current_user,
     user_id: int
 ):
     if get_user.get('is_admin'):

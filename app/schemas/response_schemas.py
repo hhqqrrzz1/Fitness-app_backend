@@ -28,6 +28,10 @@ class MuscleGroupResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class MuscleGroupResponsePatch(BaseModel):
+    id: int
+    group_name: str
+
 class TrainingResponse(BaseModel):
     id: int
     title: str
@@ -35,3 +39,7 @@ class TrainingResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class TrainingResponsePatch(BaseModel):
+    id: int
+    title: str

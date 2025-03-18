@@ -8,12 +8,12 @@ class CreateUser(BaseModel):
     password: str = Field(..., min_length=5)
 
 class CreateSet(BaseModel):
-    weight_per_exe: float = Field(..., gt=0)
+    weight_per_exe: float = Field(..., ge=0)
     reps: int = Field(..., gt=0)
 
 class CreateExercise(BaseModel):
     exercise_name: str = Field(..., min_length=3, max_length=15)
-    weight: float = Field(..., gt=0)
+    weight: float = Field(..., ge=0)
     sets: List[CreateSet]
 
 class CreateMuscleGroup(BaseModel):
