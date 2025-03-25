@@ -174,9 +174,9 @@ async def rename_muscle_group(db: db_session, get_user: current_user, muscle_gro
                 db.add(updated_muscle_group)
             else:
                 raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete muscle group: {str(e)}"
-        )
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail='You are not authorized to use this method'
+                )
     except IntegrityError as e:
         await db.rollback()
         raise HTTPException(

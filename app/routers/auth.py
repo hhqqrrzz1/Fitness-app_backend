@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from app.backend.db_depends import get_db
 from app.models.all_models import User
 from app.schemas.create_schemas import CreateUser
-from app.backend.db_depends import get_db
 from sqlalchemy import insert, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
@@ -117,19 +117,3 @@ async def create_user(db: Annotated[AsyncSession, Depends(get_db)], create_user:
 @router.get('read_current_user')
 async def read_current_user(user: Annotated[User, Depends(get_current_user)]):
     return {'User': user}
-
-
-
-# @router.get("/all_workouts/{user_id}", status_code=status.HTTP_200_OK)
-# async def get_number_of_trainings(db: Annotated[AsyncSession, Depends(get_db)], user_id: int):
-#     """Функция, которая возвращает кол-во тренировок у юзера и выводит список всех его тренировок, в порядке возрастания даты"""
-#     user = await db.scalar(select(User).where(User.id == user_id))
-#     if not user:
-#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-#     all_trainings = await db.scalars(select(Training.title).where(Training.user_id == user_id).order_by(Training.date))
-#     title_list = all_trainings.all()
-
-#     return {
-#         "number_of_trainings": len(title_list),
-#         "trainings": title_list
-#     }

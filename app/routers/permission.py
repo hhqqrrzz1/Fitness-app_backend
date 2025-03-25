@@ -65,6 +65,31 @@ async def delete_user(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail='You can`t delete admin user'
             )
-    await db.execute(delete(User).where(User.id == user_id))
-    await db.commit()
-    return None
+        await db.execute(delete(User).where(User.id == user_id))
+        await db.commit()
+        return None
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='You don`t have admin permission'
+        )
+
+@router.get('/get_id')
+async def get_user_id(db: db_session, get_user: current_user, username: str):
+    if get_user.get("is_admin"):
+        user_id = await db.scalar(select(User.id).where(User.username == username))
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        return {
+            'status': status.HTTP_200_OK,
+            'user_id': user_id
+        }
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='You don`t have admin permission'
+        )
+    
