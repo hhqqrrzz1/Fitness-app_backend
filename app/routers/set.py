@@ -11,7 +11,7 @@ router = APIRouter(prefix='/sets', tags=['sets'])
 
 
 @router.post('/', status_code=status.HTTP_201_CREATED)
-async def create_set(db: db_session, create_set: CreateSet, exercise_id: int):
+async def create_set(db: db_session, get_user: current_user, create_set: CreateSet, exercise_id: int):
     try:
         async with db.begin():
             exercise = await db.scalar(select(Exercise).where(Exercise.id == exercise_id))
@@ -20,21 +20,27 @@ async def create_set(db: db_session, create_set: CreateSet, exercise_id: int):
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Exercise not found"
                 )
-            new_set = Set(
-                exercise_id=exercise_id,
-                weight_per_exe=create_set.weight_per_exe,
-                reps=create_set.reps,
-                user_id=exercise.user_id
-            )
-            db.add(new_set)
-            await db.flush()
+            if get_user.get('is_admin') or get_user.get('id') == exercise.user_id:
+                new_set = Set(
+                    exercise_id=exercise_id,
+                    weight_per_exe=create_set.weight_per_exe,
+                    reps=create_set.reps,
+                    user_id=exercise.user_id
+                )
+                db.add(new_set)
+                await db.flush()
 
-            exercise.numbers_reps += 1
-            db.add(exercise)
-            return {
-        'status': status.HTTP_201_CREATED,
-        'transaction': 'New set created'
-    }
+                exercise.numbers_reps += 1
+                db.add(exercise)
+                return {
+            'status': status.HTTP_201_CREATED,
+            'transaction': 'New set created'
+        }
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail='You are not authorized to use this method'
+                )
 
     except IntegrityError as e:
         await db.rollback()
@@ -80,7 +86,7 @@ async def get_all_set_by_exercise(db: db_session, exercise_id: int, get_user: cu
 
 
 @router.delete('/{set_id}', status_code=status.HTTP_204_NO_CONTENT)
-async def delete_set(db: db_session, set_id: int):
+async def delete_set(db: db_session, get_user: current_user, set_id: int):
     try:
         async with db.begin():
             set_to_delete = await db.scalar(select(Set).where(Set.id == set_id))
@@ -89,18 +95,22 @@ async def delete_set(db: db_session, set_id: int):
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail='Set not found'
                 )
-            
-            exercise = await db.scalar(select(Exercise).where(Exercise.id == set_to_delete.exercise_id))
-
-            if exercise.numbers_reps == 1:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="Can't delete last approach"
-                )
+            if get_user.get('is_admin') or get_user.get('id') == set_to_delete.user_id:
+                exercise = await db.scalar(select(Exercise).where(Exercise.id == set_to_delete.exercise_id))
+                if exercise.numbers_reps == 1:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Can't delete last approach"
+                    )
+                else:
+                    await db.execute(delete(Set).where(Set.id == set_id))
+                    exercise.numbers_reps -= 1
+                db.add(exercise)
             else:
-                await db.execute(delete(Set).where(Set.id == set_id))
-                exercise.numbers_reps -= 1
-            db.add(exercise)
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail='You are not authorized to use this method'
+                )
 
     except IntegrityError as e:
         await db.rollback()
@@ -112,7 +122,7 @@ async def delete_set(db: db_session, set_id: int):
 
 
 @router.put('/{set_id}', status_code=status.HTTP_200_OK, response_model=SetResponse)
-async def update_set(db: db_session, set_id: int, new_data: CreateSet):
+async def update_set(db: db_session, get_user: current_user, set_id: int, new_data: CreateSet):
     try:
         async with db.begin():
             set_to_update = await db.scalar(select(Set).where(Set.id == set_id))
@@ -121,16 +131,21 @@ async def update_set(db: db_session, set_id: int, new_data: CreateSet):
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Set not found"
                 )
-            
-            if (
-                set_to_update.weight_per_exe == new_data.weight_per_exe and
-                set_to_update.reps == new_data.reps
-            ):
-                return set_to_update
+            if get_user.get('is_admin') or get_user.get('id') == set_to_update.user_id:
+                if (
+                    set_to_update.weight_per_exe == new_data.weight_per_exe and
+                    set_to_update.reps == new_data.reps
+                ):
+                    return set_to_update
 
-            set_to_update.weight_per_exe = new_data.weight_per_exe
-            set_to_update.reps = new_data.reps
-            db.add(set_to_update)
+                set_to_update.weight_per_exe = new_data.weight_per_exe
+                set_to_update.reps = new_data.reps
+                db.add(set_to_update)
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail='You are not authorized to use this method'
+                )
   
     except Exception as e:
         await db.rollback()

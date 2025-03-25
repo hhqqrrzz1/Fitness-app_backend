@@ -1,10 +1,11 @@
 from fastapi import APIRouter, status, HTTPException
 from sqlalchemy import select, update, delete
 from app.models.all_models import User
-from app.routers.env import full_rights
+from app.config import settings
 from app.routers.dependencies import current_user, db_session
 
 router = APIRouter(prefix='/permission', tags=['permission'])
+full_rights = settings.full_rights_users
 
 @router.patch('/')
 async def admin_permission(

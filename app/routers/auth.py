@@ -7,10 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
-from .env import SECRET_KEY, ALHGORITM
+from app.config import settings
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
 
+secret_key = settings.SECRET_KEY
+algorithm = settings.ALGORITHM
+full_rights = settings.full_rights_users
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 
@@ -23,12 +26,12 @@ async def create_access_token(username: str, user_id: int, is_admin: bool, is_gu
     expires = datetime.now() + expires_delta
     encode.update({'exp': expires})
     
-    return jwt.encode(encode, SECRET_KEY, algorithm=ALHGORITM)
+    return jwt.encode(encode, secret_key, algorithm=algorithm)
 
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=ALHGORITM)
+        payload = jwt.decode(token, secret_key, algorithms=algorithm)
         username: str = payload.get('sub')
         user_id: int = payload.get('id')
         is_admin: str = payload.get('is_admin')

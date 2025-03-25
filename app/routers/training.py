@@ -1,8 +1,8 @@
 from app.models import Training, Set, MuscleGroup, Exercise
 from app.schemas.create_schemas import CreateTraining
 from app.schemas.response_schemas import TrainingResponse, TrainingResponsePatch
-from fastapi import APIRouter, Body, HTTPException, status
-from sqlalchemy import select, delete, update
+from fastapi import APIRouter, HTTPException, status
+from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
 from datetime import date
 from app.routers.dependencies import db_session, current_user
@@ -12,9 +12,10 @@ router = APIRouter(prefix='/trainings', tags=['trainings'])
 
 
 @router.post('/', status_code=status.HTTP_201_CREATED)
-async def create_training(db: db_session, create_training_data: CreateTraining, user_id: int):
+async def create_training(db: db_session, create_training_data: CreateTraining, get_user: current_user):
     try:
         async with db.begin():
+            user_id = get_user.get('id')
             new_training = Training(
                 date=create_training_data.date,
                 user_id=user_id
@@ -101,8 +102,25 @@ async def get_training(db: db_session, training_id: int, get_user: current_user)
         )
 
 
+@router.get("/all_workouts/", status_code=status.HTTP_200_OK)
+async def get_number_of_trainings(db: db_session, get_user: current_user):
+    """
+    Функция, которая возвращает кол-во тренировок у юзера и выводит список всех его тренировок, в порядке возрастания даты
+    """    
+    user_id = get_user.get('id')
+    all_trainings = await db.scalars(select(Training.title).where(Training.user_id == user_id).order_by(Training.date))
+    title_list = all_trainings.all()
+    if len(title_list) == 0:
+        return {'message': 'You have no training'}
+
+    return {
+        "number_of_trainings": len(title_list),
+        "trainings": title_list
+    }
+
+
 @router.patch("/update-training-date", response_model=TrainingResponsePatch)
-async def update_training_date(db: db_session, training_id: int, update_date: date):
+async def update_training_date(db: db_session, get_user: current_user, training_id: int, update_date: date):
     try:
         async with db.begin():
             training = await db.scalar(select(Training)
@@ -111,16 +129,22 @@ async def update_training_date(db: db_session, training_id: int, update_date: da
             if not training:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Тренировка не найдена")
             
-            if training.date == update_date:
-                return training
-            
-            muscle_group_names = [group.group_name.strip().title() for group in training.muscle_groups]
-            formatted_date = update_date.strftime("%d.%m.%Y")
-            new_title = f"{formatted_date}-" + ', '.join(muscle_group_names)
-            
-            training.date = update_date
-            training.title = new_title
-            db.add(training)
+            if get_user.get('is_admin') or get_user.get('id') == training.user_id:            
+                if training.date == update_date:
+                    return training
+                
+                muscle_group_names = [group.group_name.strip().title() for group in training.muscle_groups]
+                formatted_date = update_date.strftime("%d.%m.%Y")
+                new_title = f"{formatted_date}-" + ', '.join(muscle_group_names)
+                
+                training.date = update_date
+                training.title = new_title
+                db.add(training)
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail='You are not authorized to use this method'
+                )
 
     except IntegrityError as e:
         await db.rollback()
@@ -132,7 +156,7 @@ async def update_training_date(db: db_session, training_id: int, update_date: da
 
 
 @router.delete('/{training_id}', status_code=status.HTTP_204_NO_CONTENT)
-async def delete_training(db: db_session, training_id: int):
+async def delete_training(db: db_session, get_user: current_user, training_id: int):
     try:
         async with db.begin():
             training = await db.scalar(select(Training).where(Training.id == training_id))
@@ -141,7 +165,14 @@ async def delete_training(db: db_session, training_id: int):
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Тренировка не найдена"
                 )
-            await db.execute(delete(Training).where(Training.id == training_id))
+            if get_user.get('is_admin') or get_user.get('id') == training.user_id:
+                await db.execute(delete(Training).where(Training.id == training_id))
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail='You are not authorized to use this method'
+                )
+                
     except IntegrityError as e:
         await db.rollback()
         raise HTTPException(
