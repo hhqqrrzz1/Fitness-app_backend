@@ -3,6 +3,7 @@ from sqlalchemy import select, update, delete
 from app.models.all_models import User
 from app.config import settings
 from app.routers.dependencies import current_user, db_session
+from logging_config import logger
 
 router = APIRouter(prefix='/permission', tags=['permission'])
 full_rights = settings.full_rights_users
@@ -29,6 +30,7 @@ async def admin_permission(
         if user.is_admin:
             await db.execute(update(User).where(User.id == user_id).values(is_admin=False, is_guest=True))
             await db.commit()
+            logger.info(f"Больше пользователь с ID {user_id} не admin")
             return {
                 'status': status.HTTP_200_OK,
                 'detail': "User is no longer admin"
@@ -36,6 +38,7 @@ async def admin_permission(
         else:
             await db.execute(update(User).where(User.id == user_id).values(is_admin=True, is_guest=False))
             await db.commit()
+            logger.info(f"Теперь пользователь с ID {user_id} admin")
             return {
                 'status': status.HTTP_200_OK,
                 'detail': 'User is now admin'

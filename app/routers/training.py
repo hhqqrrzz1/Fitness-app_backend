@@ -1,6 +1,8 @@
+from typing import Annotated
 from app.models import Training, Set, MuscleGroup, Exercise
 from app.schemas.create_schemas import CreateTraining
 from app.schemas.response_schemas import TrainingResponse, TrainingResponsePatch
+from app.schemas.update_schemas import UpdateTrainings
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
@@ -112,51 +114,53 @@ async def get_training(db: db_session, training_id: int, get_user: current_user)
         )
 
 
-@router.get("/all_workouts/", status_code=status.HTTP_200_OK)
+@router.get("/", status_code=status.HTTP_200_OK)
 async def get_number_of_trainings(db: db_session, get_user: current_user):
     """
     Функция, которая возвращает кол-во тренировок у юзера и выводит список всех его тренировок, в порядке возрастания даты
     """
     logger.info(f"Пользователь {get_user.get('id')} пытается получить список своих тренировок")
     user_id = get_user.get('id')
-    all_trainings = await db.scalars(select(Training.title).where(Training.user_id == user_id).order_by(Training.date))
-    title_list = all_trainings.all()
-    if len(title_list) == 0:
+    all_trainings = await db.scalars(select(Training).where(Training.user_id == user_id).order_by(Training.date))
+    trainings_list = all_trainings.all()
+    if len(trainings_list) == 0:
         logger.info(f"У пользователя {get_user.get('id')} не создано тренировок")
         return {'message': 'You have no training'}
     logger.info(f"Пользователь {get_user.get('id')} успешно получил список тренировок")
 
     return {
-        "number_of_trainings": len(title_list),
-        "trainings": title_list
+        "number_of_trainings": len(trainings_list),
+        "trainings": [
+            {"id": training.id, "title": training.title} for training in trainings_list
+        ]
     }
 
 
 @router.patch("/update-training-date", response_model=TrainingResponsePatch)
-async def update_training_date(db: db_session, get_user: current_user, training_id: int, update_date: date):
+async def update_training_date(db: db_session, get_user: current_user, update_data: UpdateTrainings):
     try:
         async with db.begin():
-            logger.info(f"Пользователь {get_user.get('id')} пытается изменить тренировку {training_id}")
+            logger.info(f"Пользователь {get_user.get('id')} пытается изменить тренировку {update_data.training_id}")
             training = await db.scalar(select(Training)
                                        .options(selectinload(Training.muscle_groups))
-                                       .where(Training.id == training_id))
+                                       .where(Training.id == update_data.training_id))
             if not training:
-                logger.warning(f"Тренировки с ID {training_id} нет")
+                logger.warning(f"Тренировки с ID {update_data.training_id} нет")
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Тренировка не найдена")
             
             if get_user.get('is_admin') or get_user.get('id') == training.user_id:            
-                if training.date == update_date:
-                    logger.info(f"Тренировка {training_id} имеет аналогичные данные")
+                if training.date == update_data.update_date:
+                    logger.info(f"Тренировка {update_data.training_id} имеет аналогичные данные")
                     return training
                 
                 muscle_group_names = [group.group_name.strip().title() for group in training.muscle_groups]
-                formatted_date = update_date.strftime("%d.%m.%Y")
+                formatted_date = update_data.update_date.strftime("%d.%m.%Y")
                 new_title = f"{formatted_date}-" + ', '.join(muscle_group_names)
                 
-                training.date = update_date
+                training.date = update_data.update_date
                 training.title = new_title
                 db.add(training)
-                logger.info(f"Тренировка {training_id} успешно изменена")
+                logger.info(f"Тренировка {update_data.training_id} успешно изменена")
             else:
                 logger.warning(f"Пользователь {get_user.get('id')} не имеет прав для данного метода")
                 raise HTTPException(
